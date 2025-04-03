@@ -13,7 +13,7 @@ test_ratio = 0.1
 random.seed(42)
 
 # 拆分后数据集目录
-split_dir = 'D:/Projects/PycharmProjects/trainSafetyChecks/datasets/Train/'
+split_dir = 'D:/Projects/PycharmProjects/trainSafetyChecks/ultralytics/datasets/Train/'
 os.makedirs(os.path.join(split_dir, 'train/images'), exist_ok=True)
 os.makedirs(os.path.join(split_dir, 'train/labels'), exist_ok=True)
 os.makedirs(os.path.join(split_dir, 'valid/images'), exist_ok=True)
