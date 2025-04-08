@@ -207,11 +207,11 @@ class Loss:
 
 
 def train(cfg=DEFAULT_CFG, use_python=False):
-    model = cfg.model or 'yolov8s.pt'
-    data = cfg.data or 'coco128.yaml'  # or yolo.ClassificationDataset("mnist")
+    model = 'yolov8s.yaml'
+    data = 'D:/Projects/PycharmProjects/trainSafetyChecks/ultralytics/datasets/train.yaml'
     device = cfg.device if cfg.device is not None else ''
 
-    args = dict(model=model, data=data, device=device)
+    args = dict(model=model, data=data, device=device, epochs=10, batch=1, imgsz=(2048, 7000))
     if use_python:
         from ultralytics import YOLO
         YOLO(model).train(**args)

@@ -67,7 +67,7 @@ class YOLO:
         list(ultralytics.yolo.engine.results.Results): The prediction results.
     """
 
-    def __init__(self, model='yolov8n.pt', task=None, session=None) -> None:
+    def __init__(self, model='yolov8s.pt', task=None, session=None) -> None:
         """
         Initializes the YOLO model.
 

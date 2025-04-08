@@ -45,8 +45,9 @@ class BiFPN(nn.Module):
 
 
 class CBAM(nn.Module):
-    def __init__(self, in_channels, reduction=16, kernel_size=7):
+    def __init__(self, in_channels, reduction=16, kernel_size=7, *args, **kwargs):
         super(CBAM, self).__init__()
+        # Channel Attention Module
         self.channel_attention = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Conv2d(in_channels, in_channels // reduction, kernel_size=1, bias=False),
@@ -54,18 +55,20 @@ class CBAM(nn.Module):
             nn.Conv2d(in_channels // reduction, in_channels, kernel_size=1, bias=False),
             nn.Sigmoid()
         )
+        # Spatial Attention Module
         self.spatial_attention = nn.Sequential(
             nn.Conv2d(2, 1, kernel_size=kernel_size, padding=kernel_size // 2, bias=False),
             nn.Sigmoid()
         )
 
     def forward(self, x):
-        # Channel Attention
+        # Apply Channel Attention
         ca = self.channel_attention(x)
         x = x * ca
-        # Spatial Attention
+        # Apply Spatial Attention
         sa = self.spatial_attention(
-            torch.cat([torch.mean(x, dim=1, keepdim=True), torch.max(x, dim=1, keepdim=True)[0]], dim=1))
+            torch.cat([torch.mean(x, dim=1, keepdim=True), torch.max(x, dim=1, keepdim=True)[0]], dim=1)
+        )
         x = x * sa
         return x
 
