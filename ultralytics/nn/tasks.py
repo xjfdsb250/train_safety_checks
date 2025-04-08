@@ -10,7 +10,7 @@ import torch.nn as nn
 
 from ultralytics.nn.modules import (C1, C2, C3, C3TR, SPP, SPPF, Bottleneck, BottleneckCSP, C2f, C3Ghost, C3x, Classify,
                                     Concat, Conv, ConvTranspose, Detect, DWConv, DWConvTranspose2d, Ensemble, Focus,
-                                    GhostBottleneck, GhostConv, Segment, CBAM, BiFPN)
+                                    GhostBottleneck, GhostConv, Segment, CBAM, Concat_BiFPN)
 from ultralytics.yolo.utils import DEFAULT_CFG_DICT, DEFAULT_CFG_KEYS, LOGGER, RANK, colorstr, emojis, yaml_load
 from ultralytics.yolo.utils.checks import check_requirements, check_yaml
 from ultralytics.yolo.utils.torch_utils import (fuse_conv_and_bn, fuse_deconv_and_bn, initialize_weights,
@@ -468,11 +468,8 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
             if c2 != nc:  # if c2 not equal to number of classes (i.e. for Classify() output)
                 c2 = make_divisible(c2 * gw, 8)
             args = [c1, *args[1:]]
-        elif m is BiFPN:
-            c1, c2 = ch[f], args[0]
-            if c2 != nc:
-                c2 = make_divisible(c2 * gw, 8)
-            args = [c1, c2, *args[1:]]
+        elif m is Concat_BiFPN:
+            c2 = sum(ch[x] for x in f)
         else:
             c2 = ch[f]
 

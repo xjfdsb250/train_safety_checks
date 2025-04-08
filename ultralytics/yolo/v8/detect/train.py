@@ -211,7 +211,7 @@ def train(cfg=DEFAULT_CFG, use_python=False):
     data = 'D:/Projects/PycharmProjects/trainSafetyChecks/ultralytics/datasets/train.yaml'
     device = cfg.device if cfg.device is not None else ''
 
-    args = dict(model=model, data=data, device=device, epochs=10, batch=1, imgsz=(2048, 7000))
+    args = dict(model=model, data=data, device=device, epochs=300, batch=8, imgsz=1024)
     if use_python:
         from ultralytics import YOLO
         YOLO(model).train(**args)

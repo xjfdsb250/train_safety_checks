@@ -275,6 +275,13 @@ class BaseTrainer:
             if rank != -1:
                 self.train_loader.sampler.set_epoch(epoch)
             pbar = enumerate(self.train_loader)
+            # Update dataloader attributes (optional)
+            if epoch == (self.epochs - self.args.close_mosaic):
+                LOGGER.info('Closing dataloader mosaic')
+                if hasattr(self.train_loader.dataset, 'mosaic'):
+                    self.train_loader.dataset.mosaic = False
+                if hasattr(self.train_loader.dataset, 'close_mosaic'):
+                    self.train_loader.dataset.close_mosaic(hyp=self.args)
             if rank in {-1, 0}:
                 LOGGER.info(self.progress_string())
                 pbar = tqdm(enumerate(self.train_loader), total=nb, bar_format=TQDM_BAR_FORMAT)

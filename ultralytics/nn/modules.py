@@ -21,27 +21,19 @@ def autopad(k, p=None, d=1):  # kernel, padding, dilation
     return p
 
 
-class BiFPN(nn.Module):
-    def __init__(self, in_channels, out_channels, num_layers=3):
-        super(BiFPN, self).__init__()
-        self.num_layers = num_layers
-        self.conv_layers = nn.ModuleList([
-            nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0) for _ in range(num_layers)
-        ])
-        self.weight_layers = nn.ParameterList([
-            nn.Parameter(torch.ones(2, dtype=torch.float32), requires_grad=True) for _ in range(num_layers)
-        ])
-        self.relu = nn.ReLU()
+class Concat_BiFPN(nn.Module):
+    def __init__(self, dimension=1):
+        super(Concat_BiFPN, self).__init__()
+        self.d = dimension
+        self.w = nn.Parameter(torch.ones(3, dtype=torch.float32), requires_grad=True)
+        self.epsilon = 0.0001
 
-    def forward(self, inputs):
-        # inputs: list of feature maps from different levels
-        for i in range(self.num_layers):
-            w = self.relu(self.weight_layers[i])
-            w = w / (torch.sum(w, dim=0) + 1e-6)  # Normalize weights
-            inputs[i] = self.conv_layers[i](inputs[i])
-            inputs[i] = w[0] * inputs[i] + w[1] * F.interpolate(inputs[i + 1], size=inputs[i].shape[-2:],
-                                                                mode='nearest')
-        return inputs
+    def forward(self, x):
+        w = self.w
+        weight = w / (torch.sum(w, dim=0) + self.epsilon)  # 将权重进行归一化
+        # Fast normalized fusion
+        x = [weight[0] * x[0], weight[1] * x[1]]
+        return torch.cat(x, self.d)
 
 
 class CBAM(nn.Module):
