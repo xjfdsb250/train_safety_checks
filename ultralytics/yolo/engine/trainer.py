@@ -275,14 +275,6 @@ class BaseTrainer:
             if rank != -1:
                 self.train_loader.sampler.set_epoch(epoch)
             pbar = enumerate(self.train_loader)
-            # Update dataloader attributes (optional)
-            if epoch == (self.epochs - self.args.close_mosaic):
-                LOGGER.info('Closing dataloader mosaic')
-                if hasattr(self.train_loader.dataset, 'mosaic'):
-                    self.train_loader.dataset.mosaic = False
-                if hasattr(self.train_loader.dataset, 'close_mosaic'):
-                    self.train_loader.dataset.close_mosaic(hyp=self.args)
-
             if rank in {-1, 0}:
                 LOGGER.info(self.progress_string())
                 pbar = tqdm(enumerate(self.train_loader), total=nb, bar_format=TQDM_BAR_FORMAT)
@@ -296,13 +288,12 @@ class BaseTrainer:
                     xi = [0, nw]  # x interp
                     self.accumulate = max(1, np.interp(ni, xi, [1, self.args.nbs / self.batch_size]).round())
                     for j, x in enumerate(self.optimizer.param_groups):
-                        # bias lr falls from 0.1 to lr0, all other lrs rise from 0.0 to lr0
                         x['lr'] = np.interp(
                             ni, xi, [self.args.warmup_bias_lr if j == 0 else 0.0, x['initial_lr'] * self.lf(epoch)])
                         if 'momentum' in x:
                             x['momentum'] = np.interp(ni, xi, [self.args.warmup_momentum, self.args.momentum])
 
-                # Forward
+                # Forward with mixed precision
                 with torch.cuda.amp.autocast(self.amp):
                     batch = self.preprocess_batch(batch)
                     preds = self.model(batch['img'])
@@ -312,10 +303,10 @@ class BaseTrainer:
                     self.tloss = (self.tloss * i + self.loss_items) / (i + 1) if self.tloss is not None \
                         else self.loss_items
 
-                # Backward
-                self.scaler.scale(self.loss).backward()
+                # Backward with gradient accumulation
+                self.scaler.scale(self.loss / self.accumulate).backward()
 
-                # Optimize - https://pytorch.org/docs/master/notes/amp_examples.html
+                # Optimize
                 if ni - last_opt_step >= self.accumulate:
                     self.optimizer_step()
                     last_opt_step = ni
@@ -340,8 +331,6 @@ class BaseTrainer:
             self.run_callbacks('on_train_epoch_end')
 
             if rank in {-1, 0}:
-
-                # Validation
                 self.ema.update_attr(self.model, include=['yaml', 'nc', 'args', 'names', 'stride', 'class_weights'])
                 final_epoch = (epoch + 1 == self.epochs) or self.stopper.possible_stop
 
@@ -350,7 +339,6 @@ class BaseTrainer:
                 self.save_metrics(metrics={**self.label_loss_items(self.tloss), **self.metrics, **self.lr})
                 self.stop = self.stopper(epoch + 1, self.fitness)
 
-                # Save model
                 if self.args.save or (epoch + 1 == self.epochs):
                     self.save_model()
                     self.run_callbacks('on_model_save')
@@ -360,17 +348,15 @@ class BaseTrainer:
             self.epoch_time_start = tnow
             self.run_callbacks('on_fit_epoch_end')
 
-            # Early Stopping
-            if RANK != -1:  # if DDP training
+            if RANK != -1:
                 broadcast_list = [self.stop if RANK == 0 else None]
-                dist.broadcast_object_list(broadcast_list, 0)  # broadcast 'stop' to all ranks
+                dist.broadcast_object_list(broadcast_list, 0)
                 if RANK != 0:
                     self.stop = broadcast_list[0]
             if self.stop:
-                break  # must break all DDP ranks
+                break
 
         if rank in {-1, 0}:
-            # Do final val with best.pt
             LOGGER.info(f'\n{epoch - self.start_epoch + 1} epochs completed in '
                         f'{(time.time() - self.train_time_start) / 3600:.3f} hours.')
             self.final_eval()

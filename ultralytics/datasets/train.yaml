@@ -21,3 +21,7 @@ names:
   3: BrokeDoor
   4: ExternalSuspension
   5: OverflowGoods
+
+imgsz: [2048, 7000]
+accumulation_steps: 4
+fp16: true

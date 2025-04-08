@@ -16,11 +16,11 @@ from ultralytics.yolo.utils.ops import xywh2xyxy
 from ultralytics.yolo.utils.plotting import plot_images, plot_labels, plot_results
 from ultralytics.yolo.utils.tal import TaskAlignedAssigner, dist2bbox, make_anchors
 from ultralytics.yolo.utils.torch_utils import de_parallel
+from torch.cuda.amp import GradScaler, autocast
 
 
 # BaseTrainer python usage
 class DetectionTrainer(BaseTrainer):
-
     def get_dataloader(self, dataset_path, batch_size, mode='train', rank=0):
         # TODO: manage splits differently
         # calculate stride - check if model is initialized
@@ -45,6 +45,9 @@ class DetectionTrainer(BaseTrainer):
 
     def preprocess_batch(self, batch):
         batch['img'] = batch['img'].to(self.device, non_blocking=True).float() / 255
+        if batch['img'].shape[-2:] != self.args.imgsz:  # 仅在尺寸不匹配时调整
+            batch['img'] = torch.nn.functional.interpolate(batch['img'], size=self.args.imgsz, mode='bilinear',
+                                                           align_corners=False)
         return batch
 
     def set_model_attributes(self):
@@ -204,7 +207,7 @@ class Loss:
 
 
 def train(cfg=DEFAULT_CFG, use_python=False):
-    model = cfg.model or 'yolov8n.pt'
+    model = cfg.model or 'yolov8s.pt'
     data = cfg.data or 'coco128.yaml'  # or yolo.ClassificationDataset("mnist")
     device = cfg.device if cfg.device is not None else ''
 
