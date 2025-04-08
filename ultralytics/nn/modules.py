@@ -7,6 +7,7 @@ import math
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from ultralytics.yolo.utils.tal import dist2bbox, make_anchors
 
@@ -18,6 +19,55 @@ def autopad(k, p=None, d=1):  # kernel, padding, dilation
     if p is None:
         p = k // 2 if isinstance(k, int) else [x // 2 for x in k]  # auto-pad
     return p
+
+
+class BiFPN(nn.Module):
+    def __init__(self, in_channels, out_channels, num_layers=3):
+        super(BiFPN, self).__init__()
+        self.num_layers = num_layers
+        self.conv_layers = nn.ModuleList([
+            nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0) for _ in range(num_layers)
+        ])
+        self.weight_layers = nn.ParameterList([
+            nn.Parameter(torch.ones(2, dtype=torch.float32), requires_grad=True) for _ in range(num_layers)
+        ])
+        self.relu = nn.ReLU()
+
+    def forward(self, inputs):
+        # inputs: list of feature maps from different levels
+        for i in range(self.num_layers):
+            w = self.relu(self.weight_layers[i])
+            w = w / (torch.sum(w, dim=0) + 1e-6)  # Normalize weights
+            inputs[i] = self.conv_layers[i](inputs[i])
+            inputs[i] = w[0] * inputs[i] + w[1] * F.interpolate(inputs[i + 1], size=inputs[i].shape[-2:],
+                                                                mode='nearest')
+        return inputs
+
+
+class CBAM(nn.Module):
+    def __init__(self, in_channels, reduction=16, kernel_size=7):
+        super(CBAM, self).__init__()
+        self.channel_attention = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(in_channels, in_channels // reduction, kernel_size=1, bias=False),
+            nn.ReLU(),
+            nn.Conv2d(in_channels // reduction, in_channels, kernel_size=1, bias=False),
+            nn.Sigmoid()
+        )
+        self.spatial_attention = nn.Sequential(
+            nn.Conv2d(2, 1, kernel_size=kernel_size, padding=kernel_size // 2, bias=False),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        # Channel Attention
+        ca = self.channel_attention(x)
+        x = x * ca
+        # Spatial Attention
+        sa = self.spatial_attention(
+            torch.cat([torch.mean(x, dim=1, keepdim=True), torch.max(x, dim=1, keepdim=True)[0]], dim=1))
+        x = x * sa
+        return x
 
 
 class Conv(nn.Module):
