@@ -84,9 +84,8 @@ class DetectionPredictor(BasePredictor):
 
 
 def predict(cfg=DEFAULT_CFG, use_python=False):
-    model = cfg.model or 'yolov8n.pt'
-    source = cfg.source if cfg.source is not None else ROOT / 'assets' if (ROOT / 'assets').exists() \
-        else 'https://ultralytics.com/images/bus.jpg'
+    model = 'D:/Projects/PycharmProjects/trainSafetyChecks/runs/detect/train2/weights/best.pt'
+    source = 'D:/Projects/PycharmProjects/trainSafetyChecks/ultralytics/datasets/Train/test/images'
 
     args = dict(model=model, source=source)
     if use_python:

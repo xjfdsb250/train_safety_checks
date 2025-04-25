@@ -207,11 +207,13 @@ class Loss:
 
 
 def train(cfg=DEFAULT_CFG, use_python=False):
-    model = 'yolov8s.yaml'
+    # model = 'yolov8s.pt'
+    model = 'D:/Projects/PycharmProjects/trainSafetyChecks/runs/detect/train2/weights/best.pt'
     data = 'D:/Projects/PycharmProjects/trainSafetyChecks/ultralytics/datasets/train.yaml'
     device = cfg.device if cfg.device is not None else ''
+    resume = 'D:/Projects/PycharmProjects/trainSafetyChecks/runs/detect/train2/weights/last.pt'
 
-    args = dict(model=model, data=data, device=device, epochs=300, batch=8, imgsz=1024)
+    args = dict(model=model, data=data, device=device, epochs=10, batch=8)
     if use_python:
         from ultralytics import YOLO
         YOLO(model).train(**args)
